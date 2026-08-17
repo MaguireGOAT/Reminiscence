@@ -101,7 +101,7 @@ export function generateQuestions(item) {
   return { recall, discussion };
 }
 
-const MANIFEST_PATH = "/content/manifest.json";
+const MANIFEST_PATH = `${import.meta.env.BASE_URL}content/manifest.json`;
 
 let cachedManifest = null;
 

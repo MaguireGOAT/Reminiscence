@@ -332,7 +332,7 @@ function UploadModal({ editing, manifest, setManifest, onClose, setError }) {
         const id = existing?.id || nextId(items, mediaType === "text" ? "text" : mediaType === "song" ? "song" : mediaType === "video" ? "video" : "photo");
         const path = `${MEDIA_DIR}/${id}.${ext}`;
         await commitBinary(path, file, `上傳 ${title}`);
-        finalMediaUrl = `/content/media/${id}.${ext}`;
+        finalMediaUrl = `${import.meta.env.BASE_URL}content/media/${id}.${ext}`;
       }
 
       // Build the item

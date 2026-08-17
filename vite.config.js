@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
+  base: "/Reminiscence/",
   plugins: [
     react(),
     VitePWA({
@@ -19,25 +20,25 @@ export default defineConfig({
         short_name: "憶當年",
         description: "院舍小組回憶活動工具",
         lang: "zh-Hant-HK",
-        start_url: "/",
-        scope: "/",
+        start_url: "/Reminiscence/",
+        scope: "/Reminiscence/",
         display: "standalone",
         orientation: "any",
         background_color: "#FBFAF7",
         theme_color: "#1C2733",
         icons: [
           {
-            src: "/icons/icon-192.png",
+            src: "/Reminiscence/icons/icon-192.png",
             sizes: "192x192",
             type: "image/png"
           },
           {
-            src: "/icons/icon-512.png",
+            src: "/Reminiscence/icons/icon-512.png",
             sizes: "512x512",
             type: "image/png"
           },
           {
-            src: "/icons/maskable-512.png",
+            src: "/Reminiscence/icons/maskable-512.png",
             sizes: "512x512",
             type: "image/png",
             purpose: "maskable"
@@ -47,7 +48,7 @@ export default defineConfig({
       workbox: {
         globPatterns: ["**/*.{js,css,html,webmanifest,ico,png,svg}"],
         globIgnores: ["media/**", "media/**/*"],
-        navigateFallback: "/index.html",
+        navigateFallback: "/Reminiscence/index.html",
         runtimeCaching: [
           {
             urlPattern: /\/media\//,

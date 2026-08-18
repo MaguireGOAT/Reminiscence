@@ -1,6 +1,50 @@
 {
   "version": 1,
-  "media": [],
+  "media": [
+    {
+      "id": "photo-001",
+      "type": "photo",
+      "title": "【第一次】優先午夜場",
+      "year": "",
+      "place": "",
+      "theme": "童年玩具",
+      "caption": "",
+      "focus": "童年玩具與遊戲",
+      "notes": "",
+      "mediaUrl": "/Reminiscence/content/media/photo-001.jpg",
+      "sourceCredit": "",
+      "questions": {
+        "recall": [
+          {
+            "question": "這相片《【第一次】優先午夜場》主要在講述甚麼？",
+            "options": [
+              "童年玩具與遊戲",
+              "家居與日常起居",
+              "街市與飲食",
+              "工作與手藝"
+            ],
+            "answer": "童年玩具與遊戲"
+          },
+          {
+            "question": "這相片與哪一類童年回憶最有關係？",
+            "options": [
+              "童年玩具與遊戲",
+              "家居與日常起居",
+              "街市與飲食",
+              "工作與手藝"
+            ],
+            "answer": "童年玩具與遊戲"
+          }
+        ],
+        "discussion": [
+          "「【第一次】優先午夜場」令你想起甚麼舊日回憶？",
+          "「這個情景」提到的事情，你以前有冇經歷過？",
+          "你小時候最喜歡玩甚麼玩具？",
+          "那時候的玩具是自己做的，還是買回來的？"
+        ]
+      }
+    }
+  ],
   "plans": [],
   "textCards": []
 }

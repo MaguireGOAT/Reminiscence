@@ -1,23 +1,6 @@
 {
   "version": 1,
-  "media": [
-    {
-      "id": "photo-002",
-      "type": "photo",
-      "title": "【第一次】優先午夜場",
-      "year": "",
-      "place": "",
-      "theme": "童年玩具",
-      "caption": "",
-      "notes": "",
-      "mediaUrl": "/Reminiscence/content/media/photo-002.jpg",
-      "sourceCredit": "",
-      "questions": {
-        "recall": [],
-        "discussion": []
-      }
-    }
-  ],
+  "media": [],
   "plans": [],
   "textCards": []
 }

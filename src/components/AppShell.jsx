@@ -1,7 +1,6 @@
 import {
   CalendarDays,
   ClipboardList,
-  Compass,
   Home,
   Library as LibraryIcon
 } from "lucide-react";
@@ -11,7 +10,6 @@ const NAV_ITEMS = [
   { path: "/", label: "首頁", icon: Home },
   { path: "/plans", label: "活動計劃", icon: ClipboardList },
   { path: "/library", label: "資料庫", icon: LibraryIcon },
-  { path: "/explore", label: "瀏覽", icon: Compass },
   { path: "/logs", label: "小組紀錄", icon: CalendarDays }
 ];
 

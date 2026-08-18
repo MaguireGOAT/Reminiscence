@@ -1,18 +1,15 @@
 import {
-  Download,
   ExternalLink,
-  FileUp,
+  LayoutGrid,
   Library as LibraryIcon,
-  Pencil,
-  Plus,
+  List,
   Search,
-  Trash2
+  Settings2
 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
-import { Button, IconButton } from "../components/Button.jsx";
+import { useMemo, useState } from "react";
+import { Button } from "../components/Button.jsx";
 import { EmptyState } from "../components/EmptyState.jsx";
 import { MediaThumb } from "../components/MediaThumb.jsx";
-import { Modal } from "../components/Modal.jsx";
 import {
   DECADES,
   MEDIA_TYPES,
@@ -20,479 +17,121 @@ import {
   PLACES,
   THEMES
 } from "../data/starter.js";
-import { exportContentPack, importContentPack } from "../lib/packages.js";
 import { useStore } from "../lib/store.jsx";
 
-const FILE_ACCEPT = {
-  song: "audio/*,.wav,.mp3,.m4a,.aac",
-  video: "video/*,.mp4,.webm,.mov",
-  photo: "image/*,.png,.jpg,.jpeg,.webp"
-};
+const ALL = "全部";
+const VIEW_KEY = "reminiscence-library-view";
+const SORT_KEY = "reminiscence-library-sort";
+const TYPE_ORDER = ["song", "photo", "video", "text"];
 
-const blankDraft = () => ({
-  id: `media-${Date.now()}`,
-  type: "photo",
-  title: "",
-  year: "",
-  decade: "",
-  place: "其他",
-  theme: THEMES[0],
-  caption: "",
-  notes: "",
-  sourceCredit: "院舍自備",
-  mediaUrl: "",
-  coverUrl: "",
-  posterUrl: "",
-  duration: null,
-  questions: { recall: [], discussion: [] }
-});
+const SORT_OPTIONS = [
+  { value: "recent", label: "最近上載" },
+  { value: "theme", label: "主題" },
+  { value: "type", label: "類型" },
+  { value: "year", label: "年代" }
+];
 
-const cloneDraft = (item) => ({
-  ...JSON.parse(JSON.stringify(item)),
-  questions: {
-    recall: item.questions?.recall?.map((q) => ({ ...q, options: [...(q.options || [])] })) || [],
-    discussion: [...(item.questions?.discussion || [])]
+function readPref(key, fallback) {
+  try {
+    return localStorage.getItem(key) || fallback;
+  } catch {
+    return fallback;
   }
-});
+}
 
-function MediaEditor({ draft, setDraft, onClose, onSave, error }) {
-  const update = (patch) => setDraft({ ...draft, ...patch });
-  const updateQuestion = (index, patch) =>
-    setDraft({
-      ...draft,
-      questions: {
-        ...draft.questions,
-        recall: draft.questions.recall.map((q, i) =>
-          i === index ? { ...q, ...patch } : q
-        )
-      }
-    });
-  const updateDiscussion = (index, value) =>
-    setDraft({
-      ...draft,
-      questions: {
-        ...draft.questions,
-        discussion: draft.questions.discussion.map((text, i) =>
-          i === index ? value : text
-        )
-      }
-    });
+function decadeNumber(item) {
+  const text = `${item.year || ""} ${item.decade || ""}`;
+  const match = text.match(/(18|19|20)\d{2}/);
+  return match ? Number(match[0]) : Infinity;
+}
 
-  const fileUrl = (field, file) => {
-    if (!file) return;
-    update({ [field]: URL.createObjectURL(file) });
-  };
-
-  const type = draft.type;
-
+function FilterGroup({ label, options, value, onChange }) {
   return (
-    <Modal
-      title="編輯內容"
-      subtitle="媒體資料與問題會保存在這部裝置上"
-      onClose={onClose}
-      width={880}
-      footer={
-        <div className="modal-footer-inner">
-          {error ? <p className="form-error">{error}</p> : null}
-          <Button variant="ghost" onClick={onClose}>
-            取消
-          </Button>
-          <Button variant="primary" onClick={onSave}>
-            儲存
-          </Button>
-        </div>
-      }
-    >
-      <div className="form-grid">
-        <label className="form-field">
-          <span className="field-label">標題</span>
-          <input
-            className="input"
-            value={draft.title}
-            onChange={(event) => update({ title: event.target.value })}
-          />
-        </label>
-        <label className="form-field">
-          <span className="field-label">類型</span>
-          <select
-            className="select"
-            value={type}
-            onChange={(event) =>
-              update({
-                type: event.target.value,
-                mediaUrl: event.target.value === "text" ? "" : draft.mediaUrl
-              })
-            }
+    <div className="filter-group">
+      <span className="filter-label">{label}</span>
+      <div className="chip-row">
+        {[ALL, ...options].map((option) => (
+          <button
+            key={option}
+            type="button"
+            className={`chip ${value === option ? "chip-active" : ""}`}
+            onClick={() => onChange(option)}
           >
-            {MEDIA_TYPES.map((mediaType) => (
-              <option key={mediaType} value={mediaType}>
-                {MEDIA_TYPE_LABELS[mediaType]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="form-field">
-          <span className="field-label">主題</span>
-          <select
-            className="select"
-            value={draft.theme}
-            onChange={(event) => update({ theme: event.target.value })}
-          >
-            {THEMES.map((theme) => (
-              <option key={theme}>{theme}</option>
-            ))}
-          </select>
-        </label>
-        <label className="form-field">
-          <span className="field-label">年代</span>
-          <select
-            className="select"
-            value={draft.decade}
-            onChange={(event) => update({ decade: event.target.value })}
-          >
-            <option value="">不指定</option>
-            {DECADES.map((decade) => (
-              <option key={decade}>{decade}</option>
-            ))}
-          </select>
-        </label>
-        <label className="form-field">
-          <span className="field-label">地區</span>
-          <select
-            className="select"
-            value={draft.place}
-            onChange={(event) => update({ place: event.target.value })}
-          >
-            {PLACES.map((place) => (
-              <option key={place}>{place}</option>
-            ))}
-          </select>
-        </label>
-        <label className="form-field">
-          <span className="field-label">年份</span>
-          <input
-            className="input"
-            value={draft.year}
-            onChange={(event) => update({ year: event.target.value })}
-            placeholder="例如 1960年代"
-          />
-        </label>
+            {option}
+          </button>
+        ))}
       </div>
-
-      <div className="form-grid editor-file-grid">
-        {type !== "text" ? (
-          <label className="form-field">
-            <span className="field-label">
-              {type === "song"
-                ? "歌曲檔案"
-                : type === "video"
-                  ? "影片檔案"
-                  : "相片檔案"}
-            </span>
-            <input
-              className="file-input"
-              type="file"
-              accept={FILE_ACCEPT[type]}
-              onChange={(event) => fileUrl("mediaUrl", event.target.files?.[0])}
-            />
-            {draft.mediaUrl ? (
-              <span className="file-name">已選擇檔案</span>
-            ) : null}
-          </label>
-        ) : null}
-        {type === "song" || type === "video" ? (
-          <label className="form-field">
-            <span className="field-label">封面圖片</span>
-            <input
-              className="file-input"
-              type="file"
-              accept="image/*"
-              onChange={(event) =>
-                fileUrl(type === "song" ? "coverUrl" : "posterUrl", event.target.files?.[0])
-              }
-            />
-            {draft.coverUrl || draft.posterUrl ? (
-              <span className="file-name">已選擇封面</span>
-            ) : null}
-          </label>
-        ) : null}
-      </div>
-
-      <div className="form-grid">
-        <label className="form-field field-full">
-          <span className="field-label">說明</span>
-          <textarea
-            className="textarea"
-            value={draft.caption}
-            onChange={(event) => update({ caption: event.target.value })}
-          />
-        </label>
-        <label className="form-field field-full">
-          <span className="field-label">備註</span>
-          <textarea
-            className="textarea"
-            value={draft.notes}
-            onChange={(event) => update({ notes: event.target.value })}
-          />
-        </label>
-        <label className="form-field field-full">
-          <span className="field-label">來源</span>
-          <input
-            className="input"
-            value={draft.sourceCredit}
-            onChange={(event) => update({ sourceCredit: event.target.value })}
-          />
-        </label>
-      </div>
-
-      <section className="editor-section">
-        <div className="section-head">
-          <h3>回憶問題</h3>
-          <Button
-            variant="quiet"
-            size="sm"
-            icon={Plus}
-            onClick={() =>
-              setDraft({
-                ...draft,
-                questions: {
-                  ...draft.questions,
-                  recall: [
-                    ...draft.questions.recall,
-                    { question: "", options: [], answer: "" }
-                  ]
-                }
-              })
-            }
-          >
-            新增
-          </Button>
-        </div>
-        {draft.questions.recall.length ? (
-          <div className="question-edit-list">
-            {draft.questions.recall.map((question, index) => (
-              <div className="question-edit-row" key={index}>
-                <div className="question-edit-row-head">
-                  <span>問題 {index + 1}</span>
-                  <IconButton
-                    icon={Trash2}
-                    label="移除"
-                    className="icon-btn-sm icon-btn-danger"
-                    onClick={() =>
-                      setDraft({
-                        ...draft,
-                        questions: {
-                          ...draft.questions,
-                          recall: draft.questions.recall.filter(
-                            (_, i) => i !== index
-                          )
-                        }
-                      })
-                    }
-                  />
-                </div>
-                <input
-                  className="input"
-                  value={question.question}
-                  onChange={(event) =>
-                    updateQuestion(index, { question: event.target.value })
-                  }
-                  placeholder="問題"
-                />
-                <textarea
-                  className="textarea textarea-sm"
-                  value={(question.options || []).join("\n")}
-                  onChange={(event) =>
-                    updateQuestion(index, {
-                      options: event.target.value
-                        .split("\n")
-                        .map((line) => line.trim())
-                        .filter(Boolean)
-                    })
-                  }
-                  placeholder={"選項（每行一個）"}
-                />
-                <input
-                  className="input"
-                  value={question.answer}
-                  onChange={(event) =>
-                    updateQuestion(index, { answer: event.target.value })
-                  }
-                  placeholder="正確答案"
-                />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="muted small">尚未加入回憶問題。</p>
-        )}
-      </section>
-
-      <section className="editor-section">
-        <div className="section-head">
-          <h3>討論問題</h3>
-          <Button
-            variant="quiet"
-            size="sm"
-            icon={Plus}
-            onClick={() =>
-              setDraft({
-                ...draft,
-                questions: {
-                  ...draft.questions,
-                  discussion: [...draft.questions.discussion, ""]
-                }
-              })
-            }
-          >
-            新增
-          </Button>
-        </div>
-        {draft.questions.discussion.length ? (
-          <div className="discussion-edit-list">
-            {draft.questions.discussion.map((prompt, index) => (
-              <div className="discussion-edit-row" key={index}>
-                <input
-                  className="input"
-                  value={prompt}
-                  onChange={(event) => updateDiscussion(index, event.target.value)}
-                  placeholder="討論問題"
-                />
-                <IconButton
-                  icon={Trash2}
-                  label="移除"
-                  className="icon-btn-sm icon-btn-danger"
-                  onClick={() =>
-                    setDraft({
-                      ...draft,
-                      questions: {
-                        ...draft.questions,
-                        discussion: draft.questions.discussion.filter(
-                          (_, i) => i !== index
-                        )
-                      }
-                    })
-                  }
-                />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="muted small">尚未加入討論問題。</p>
-        )}
-      </section>
-    </Modal>
+    </div>
   );
 }
 
 export function LibraryView({ navigate }) {
-  const { library, plans, saveMedia, savePlan, deleteMedia } = useStore();
-  const [filter, setFilter] = useState("all");
+  const { library } = useStore();
+  const [view, setView] = useState(() => readPref(VIEW_KEY, "grid"));
+  const [sort, setSort] = useState(() => readPref(SORT_KEY, "recent"));
   const [query, setQuery] = useState("");
-  const [editor, setEditor] = useState(null);
-  const [draft, setDraft] = useState(null);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const fileInputRef = useRef(null);
+  const [filter, setFilter] = useState(ALL);
+  const [theme, setTheme] = useState(ALL);
+  const [decade, setDecade] = useState(ALL);
+  const [place, setPlace] = useState(ALL);
+
+  const changeView = (next) => {
+    setView(next);
+    try {
+      localStorage.setItem(VIEW_KEY, next);
+    } catch {}
+  };
+
+  const changeSort = (next) => {
+    setSort(next);
+    try {
+      localStorage.setItem(SORT_KEY, next);
+    } catch {}
+  };
+
+  const goAdmin = () => navigate("/admin");
 
   const filtered = useMemo(() => {
     const text = query.trim().toLowerCase();
-    return library.filter((item) => {
-      const typeMatch = filter === "all" || item.type === filter;
-      const searchable = [
-        item.title,
-        item.caption,
-        item.place,
-        item.theme,
-        item.year
-      ]
-        .join(" ")
-        .toLowerCase();
-      return typeMatch && (!text || searchable.includes(text));
+    const items = library.filter((item) => {
+      const typeMatch = filter === ALL || item.type === filter;
+      const themeMatch = theme === ALL || item.theme === theme;
+      const decadeMatch = decade === ALL || item.decade === decade;
+      const placeMatch = place === ALL || item.place === place;
+      const searchMatch =
+        !text ||
+        [item.title, item.caption, item.place, item.theme, item.year]
+          .join(" ")
+          .toLowerCase()
+          .includes(text);
+      return typeMatch && themeMatch && decadeMatch && placeMatch && searchMatch;
     });
-  }, [library, filter, query]);
+    const sorted = [...items].sort((a, b) => {
+      if (sort === "theme") return a.theme.localeCompare(b.theme, "zh-Hant-HK");
+      if (sort === "type") return TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type);
+      if (sort === "year") return decadeNumber(a) - decadeNumber(b);
+      return 0;
+    });
+    if (sort === "recent") sorted.reverse();
+    return sorted;
+  }, [library, query, filter, theme, decade, place, sort]);
 
-  const openEditor = (item) => {
-    setEditor(item || "new");
-    setDraft(item ? cloneDraft(item) : blankDraft());
-    setError("");
-  };
-
-  const save = () => {
-    if (!draft.title.trim()) {
-      setError("請填寫標題。");
-      return;
-    }
-    if (draft.type !== "text" && !draft.mediaUrl) {
-      setError("請選擇內容檔案。");
-      return;
-    }
-    saveMedia(draft);
-    setEditor(null);
-    setDraft(null);
-  };
-
-  const removeItem = (id, title) => {
-    if (window.confirm(`刪除「${title}」？`)) {
-      deleteMedia(id);
-    }
-  };
-
-  const importPack = async (event) => {
-    const files = Array.from(event.target.files || []);
-    if (!files.length) return;
-    try {
-      const [packFile, ...extraFiles] = files;
-      const result = await importContentPack(packFile, extraFiles);
-      result.library.forEach((item) => saveMedia(item));
-      result.plans.forEach((plan) => savePlan(plan));
-      setNotice(`已匯入 ${result.library.length} 個內容項目和 ${result.plans.length} 個活動計劃。`);
-    } catch (importError) {
-      setNotice(`匯入失敗：${importError.message}`);
-    }
-    event.target.value = "";
-  };
+  const openMedia = (id) => navigate(`/media/${id}`);
 
   return (
     <div className="page">
       <header className="page-header">
         <div>
           <p className="eyebrow">內容資料庫</p>
-          <h1 className="page-title">本地內容</h1>
-          <p className="page-subtitle">
-            {library.length} 個內容項目 · {plans.length} 個活動計劃
-          </p>
+          <h1 className="page-title">內容資料庫</h1>
+          <p className="page-subtitle">{library.length} 個內容項目</p>
         </div>
         <div className="page-actions">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json,.rempack.json"
-            multiple
-            hidden
-            onChange={importPack}
-          />
-          <Button
-            variant="ghost"
-            icon={FileUp}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            匯入內容包
-          </Button>
-          <Button
-            variant="ghost"
-            icon={Download}
-            onClick={() => exportContentPack(library, plans)}
-          >
-            匯出內容包
-          </Button>
-          <Button variant="primary" icon={Plus} onClick={() => openEditor(null)}>
-            新增內容
+          <Button variant="quiet" icon={Settings2} onClick={goAdmin}>
+            管理內容
           </Button>
         </div>
       </header>
-
-      {notice ? <div className="notice">{notice}</div> : null}
 
       <div className="library-toolbar">
         <div className="search-box">
@@ -504,90 +143,132 @@ export function LibraryView({ navigate }) {
             placeholder="搜尋標題、地區或主題"
           />
         </div>
-        <div className="type-tabs" role="tablist" aria-label="內容類型">
-          {["all", ...MEDIA_TYPES].map((type) => (
-            <button
-              key={type}
-              type="button"
-              role="tab"
-              aria-selected={filter === type}
-              className={`chip ${filter === type ? "chip-active" : ""}`}
-              onClick={() => setFilter(type)}
-            >
-              {type === "all" ? "全部" : MEDIA_TYPE_LABELS[type]}
-            </button>
-          ))}
+        <label className="sort-select">
+          <span>排序</span>
+          <select value={sort} onChange={(event) => changeSort(event.target.value)}>
+            {SORT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </label>
+        <div className="view-toggle" role="group" aria-label="顯示方式">
+          <button
+            type="button"
+            className={`view-toggle-btn ${view === "grid" ? "view-toggle-active" : ""}`}
+            onClick={() => changeView("grid")}
+            aria-label="網格顯示"
+          >
+            <LayoutGrid size={17} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className={`view-toggle-btn ${view === "list" ? "view-toggle-active" : ""}`}
+            onClick={() => changeView("list")}
+            aria-label="列表顯示"
+          >
+            <List size={17} aria-hidden="true" />
+          </button>
         </div>
       </div>
 
+      <div className="type-tabs" role="tablist" aria-label="內容類型">
+        {[ALL, ...MEDIA_TYPES].map((type) => (
+          <button
+            key={type}
+            type="button"
+            role="tab"
+            aria-selected={filter === type}
+            className={`chip ${filter === type ? "chip-active" : ""}`}
+            onClick={() => setFilter(type)}
+          >
+            {type === ALL ? ALL : MEDIA_TYPE_LABELS[type]}
+          </button>
+        ))}
+      </div>
+
+      <div className="filter-panel">
+        <FilterGroup label="主題" options={THEMES} value={theme} onChange={setTheme} />
+        <FilterGroup label="年代" options={DECADES} value={decade} onChange={setDecade} />
+        <FilterGroup label="地區" options={PLACES} value={place} onChange={setPlace} />
+      </div>
+
+      <div className="explore-count">
+        <strong>{filtered.length}</strong>
+        <span>個內容項目</span>
+      </div>
+
       {filtered.length ? (
-        <div className="library-list">
-          {filtered.map((item) => (
-            <article className="library-row" key={item.id}>
-              <MediaThumb item={item} size="sm" />
-              <div className="library-row-main">
-                <div className="library-row-title">
+        view === "grid" ? (
+          <div className="explore-grid">
+            {filtered.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className="explore-card"
+                onClick={() => openMedia(item.id)}
+              >
+                <MediaThumb item={item} size="md" />
+                <span className="explore-card-body">
                   <strong>{item.title}</strong>
-                  <span className="tag">{MEDIA_TYPE_LABELS[item.type]}</span>
-                  {item.decade ? <span className="tag tag-gold">{item.decade}</span> : null}
-                  <span className="tag">{item.place}</span>
+                  <span className="muted small">
+                    {MEDIA_TYPE_LABELS[item.type]}
+                    {item.year || item.decade ? ` · ${item.year || item.decade}` : ""}
+                    {item.place ? ` · ${item.place}` : ""}
+                  </span>
+                  <span className="tag tag-gold">{item.theme}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="library-list">
+            {filtered.map((item) => (
+              <article className="library-row" key={item.id}>
+                <MediaThumb item={item} size="sm" />
+                <div className="library-row-main">
+                  <div className="library-row-title">
+                    <strong>{item.title}</strong>
+                    <span className="tag">{MEDIA_TYPE_LABELS[item.type]}</span>
+                    {item.theme ? <span className="tag">{item.theme}</span> : null}
+                    {item.year || item.decade ? (
+                      <span className="tag tag-gold">{item.year || item.decade}</span>
+                    ) : null}
+                    {item.place ? <span className="tag">{item.place}</span> : null}
+                  </div>
+                  {item.caption ? (
+                    <p className="muted small library-row-caption">{item.caption}</p>
+                  ) : null}
                 </div>
-                {item.caption ? (
-                  <p className="muted small library-row-caption">{item.caption}</p>
-                ) : null}
-              </div>
-              <div className="library-row-actions">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={Pencil}
-                  onClick={() => openEditor(item)}
-                >
-                  編輯
-                </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  icon={ExternalLink}
-                  onClick={() => navigate(`/media/${item.id}`)}
-                >
-                  開啟
-                </Button>
-                <IconButton
-                  icon={Trash2}
-                  label="刪除"
-                  className="icon-btn-sm icon-btn-danger"
-                  onClick={() => removeItem(item.id, item.title)}
-                />
-              </div>
-            </article>
-          ))}
-        </div>
+                <div className="library-row-actions">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    icon={ExternalLink}
+                    onClick={() => openMedia(item.id)}
+                  >
+                    開啟
+                  </Button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )
       ) : (
         <EmptyState
           icon={LibraryIcon}
-          title="沒有符合的內容"
-          description="調整篩選，或者加入新的內容項目。"
+          title={library.length ? "沒有符合的內容" : "尚未加入內容"}
+          description={
+            library.length
+              ? "調整篩選條件再試。"
+              : "先到管理頁加入相片、歌曲或影片。"
+          }
           action={
-            <Button variant="primary" icon={Plus} onClick={() => openEditor(null)}>
-              新增內容
+            <Button variant="primary" onClick={goAdmin}>
+              前往管理內容
             </Button>
           }
         />
       )}
-
-      {editor ? (
-        <MediaEditor
-          draft={draft}
-          setDraft={setDraft}
-          error={error}
-          onClose={() => {
-            setEditor(null);
-            setDraft(null);
-          }}
-          onSave={save}
-        />
-      ) : null}
     </div>
   );
 }

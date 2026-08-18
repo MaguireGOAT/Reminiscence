@@ -1,24 +1,21 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
+
+const UPDATE_TIMEOUT_MS = 10000;
 
 export function UpdateBanner() {
   const [waiting, setWaiting] = useState(null);
   const [isFirstLoad, setIsFirstLoad] = useState(true);
+  const [phase, setPhase] = useState("idle"); // "idle" | "updating" | "failed"
+  const timerRef = useRef(null);
 
   useEffect(() => {
-    // After first load, subsequent detections show the choice banner
     const timer = setTimeout(() => setIsFirstLoad(false), 3000);
     return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
-
-    const onWaiting = (reg) => {
-      if (reg.waiting) {
-        setWaiting(reg.waiting);
-      }
-    };
 
     navigator.serviceWorker.getRegistration().then((reg) => {
       if (reg?.waiting) setWaiting(reg.waiting);
@@ -33,51 +30,74 @@ export function UpdateBanner() {
         }
       });
     });
+  }, []);
 
-    // Also listen for controllerchange (new SW activated)
-    const onControllerChange = () => {
-      if (!isFirstLoad) {
-        // Only reload if not the initial page load
-      }
-    };
-    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
-
-    return () => {
-      navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
-    };
-  }, [isFirstLoad]);
-
-  if (!waiting) return null;
-
-  const handleNow = () => {
-    waiting.postMessage({ type: "SKIP_WAITING" });
-    waiting.addEventListener("statechange", (e) => {
-      if (e.target.state === "activated") {
+  const startUpdate = () => {
+    if (!waiting || phase !== "idle") return;
+    setPhase("updating");
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setPhase("failed"), UPDATE_TIMEOUT_MS);
+    try {
+      waiting.postMessage({ type: "SKIP_WAITING" });
+    } catch {
+      setPhase("failed");
+      return;
+    }
+    const onState = (event) => {
+      if (event.target.state === "activated") {
         window.location.reload();
       }
-    });
+    };
+    waiting.addEventListener("statechange", onState);
   };
+
+  useEffect(() => {
+    if (waiting && isFirstLoad && phase === "idle") {
+      startUpdate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [waiting, isFirstLoad, phase]);
 
   const handleLater = () => {
     setWaiting(null);
   };
 
-  // If user just opened the app, force update immediately
-  if (isFirstLoad) {
-    handleNow();
+  const retryReload = () => {
+    window.location.reload();
+  };
+
+  if (phase === "updating" || phase === "failed") {
     return (
-      <div className="update-banner">
-        <RefreshCw size={18} aria-hidden="true" />
-        正在載入新版本...
+      <div className="update-overlay" role="alertdialog" aria-modal="true">
+        <div className="update-overlay-card">
+          <span className="brand-mark">憶</span>
+          {phase === "updating" ? (
+            <>
+              <p className="update-overlay-title">正在更新版本...</p>
+              <div className="update-progress" aria-hidden="true">
+                <span />
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="update-overlay-title">更新失敗，請重新整理</p>
+              <button type="button" className="btn btn-primary" onClick={retryReload}>
+                重新整理
+              </button>
+            </>
+          )}
+        </div>
       </div>
     );
   }
+
+  if (!waiting) return null;
 
   return (
     <div className="update-banner">
       <RefreshCw size={18} aria-hidden="true" />
       有新版本可用
-      <button type="button" className="btn" onClick={handleNow}>立即更新</button>
+      <button type="button" className="btn" onClick={startUpdate}>立即更新</button>
       <button type="button" className="btn" onClick={handleLater}>稍後再說</button>
     </div>
   );

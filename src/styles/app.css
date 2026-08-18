@@ -766,6 +766,55 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  margin-bottom: var(--space-5);
+}
+
+.sort-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.sort-select select {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.view-toggle {
+  display: inline-flex;
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.view-toggle-btn {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.view-toggle-btn + .view-toggle-btn {
+  border-left: 1px solid var(--line);
+}
+
+.view-toggle-active {
+  background: var(--paper-deep);
+  color: var(--accent);
 }
 
 .library-list {
@@ -2645,4 +2694,68 @@
 
 .update-banner .btn:hover {
   background: rgba(255,255,255,0.25);
+}
+
+.update-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  background: rgba(28, 39, 51, 0.86);
+  backdrop-filter: blur(4px);
+}
+
+.update-overlay-card {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: 28px 34px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+  text-align: center;
+  max-width: 340px;
+  width: calc(100% - 48px);
+}
+
+.update-overlay-card .brand-mark {
+  font-size: 28px;
+}
+
+.update-overlay-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.update-progress {
+  position: relative;
+  width: 180px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--paper-deep);
+  overflow: hidden;
+}
+
+.update-progress span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -40%;
+  width: 40%;
+  border-radius: 999px;
+  background: var(--accent);
+  animation: update-slide 1.1s ease-in-out infinite;
+}
+
+@keyframes update-slide {
+  0% {
+    left: -40%;
+  }
+  60%,
+  100% {
+    left: 100%;
+  }
 }

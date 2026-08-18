@@ -257,7 +257,12 @@ function UploadModal({ editing, manifest, setManifest, onClose, setError }) {
   const [mediaType, setMediaType] = useState(existing?.type || "photo");
   const [title, setTitle] = useState(existing?.title || "");
   const [year, setYear] = useState(existing?.year || "");
-  const [theme, setTheme] = useState(existing?.theme || THEMES[0]);
+  const [theme, setTheme] = useState(
+    existing && !THEMES.includes(existing.theme) ? "__custom__" : (existing?.theme || THEMES[0])
+  );
+  const [customTheme, setCustomTheme] = useState(
+    existing && !THEMES.includes(existing.theme) ? existing.theme : ""
+  );
   const [caption, setCaption] = useState(existing?.caption || "");
   const [notes, setNotes] = useState(existing?.notes || "");
   const [place, setPlace] = useState(existing?.place || "");
@@ -267,11 +272,26 @@ function UploadModal({ editing, manifest, setManifest, onClose, setError }) {
   const [file, setFile] = useState(null);
   const [previewSrc, setPreviewSrc] = useState("");
   const [urlInput, setUrlInput] = useState("");
-  const [customQuestions, setCustomQuestions] = useState(
-    existing?.questions?.discussion?.length
-      ? existing.questions.discussion.join("\n")
-      : ""
-  );
+  const [customQuestions, setCustomQuestions] = useState(() => {
+    const list = [];
+    for (const q of existing?.questions?.recall || []) {
+      list.push({
+        id: `q-${list.length + 1}`,
+        type: "factual",
+        question: q.question || "",
+        options: [...(q.options || [])],
+        answerIndex: Math.max(0, (q.options || []).indexOf(q.answer))
+      });
+    }
+    for (const d of existing?.questions?.discussion || []) {
+      list.push({ id: `q-${list.length + 1}`, type: "discussion", question: d });
+    }
+    return list;
+  });
+  const [questionDraftType, setQuestionDraftType] = useState("discussion");
+  const [draftQuestion, setDraftQuestion] = useState("");
+  const [draftOptions, setDraftOptions] = useState(["", "", "", ""]);
+  const [draftAnswer, setDraftAnswer] = useState(0);
   const [saving, setSaving] = useState(false);
   const [sizeWarn, setSizeWarn] = useState("");
 
@@ -322,6 +342,50 @@ function UploadModal({ editing, manifest, setManifest, onClose, setError }) {
     }
   };
 
+  const setDraftOption = (index, value) => {
+    setDraftOptions((opts) => opts.map((o, i) => (i === index ? value : o)));
+  };
+
+  const addQuestion = () => {
+    const question = draftQuestion.trim();
+    if (!question) return;
+    if (questionDraftType === "factual") {
+      const filled = draftOptions.map((o) => o.trim());
+      const filledIndices = filled.map((o, i) => (o ? i : -1)).filter((i) => i >= 0);
+      if (filledIndices.length < 2) {
+        setError("事實題需要至少兩個選項");
+        return;
+      }
+      const answerPosition = filledIndices.indexOf(draftAnswer);
+      if (answerPosition < 0) {
+        setError("請選擇正確答案所在的選項");
+        return;
+      }
+      setCustomQuestions((list) => [
+        ...list,
+        {
+          id: `q-${Date.now()}`,
+          type: "factual",
+          question,
+          options: filled.filter(Boolean),
+          answerIndex: answerPosition
+        }
+      ]);
+    } else {
+      setCustomQuestions((list) => [
+        ...list,
+        { id: `q-${Date.now()}`, type: "discussion", question }
+      ]);
+    }
+    setDraftQuestion("");
+    setDraftOptions(["", "", "", ""]);
+    setDraftAnswer(0);
+  };
+
+  const removeQuestion = (id) => {
+    setCustomQuestions((list) => list.filter((q) => q.id !== id));
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -352,14 +416,18 @@ function UploadModal({ editing, manifest, setManifest, onClose, setError }) {
         title,
         year,
         place,
-        theme,
+        theme: theme === "__custom__" ? customTheme.trim() || "自訂" : theme,
         caption,
         notes,
         mediaUrl: finalMediaUrl,
         sourceCredit,
         questions: {
-          recall: [],
-          discussion: customQuestions.split("\n").map((q) => q.trim()).filter(Boolean)
+          recall: customQuestions.filter((q) => q.type === "factual").map((q) => ({
+            question: q.question,
+            options: q.options,
+            answer: q.options[q.answerIndex]
+          })),
+          discussion: customQuestions.filter((q) => q.type === "discussion").map((q) => q.question)
         }
       };
       if (mediaType === "video" && finalPosterUrl) item.posterUrl = finalPosterUrl;
@@ -460,12 +528,19 @@ function UploadModal({ editing, manifest, setManifest, onClose, setError }) {
           </div>
 
           <div className="admin-form-row">
-            <label>主題（可自訂）</label>
-            <input value={theme} onChange={(e) => setTheme(e.target.value)} list="theme-options" placeholder="例如：食物" required />
-            <datalist id="theme-options">
-              {THEMES.map((t) => <option key={t} value={t} />)}
-            </datalist>
+            <label>主題</label>
+            <select value={theme} onChange={(e) => setTheme(e.target.value)}>
+              {THEMES.map((t) => <option key={t} value={t}>{t}</option>)}
+              <option value="__custom__">自訂</option>
+            </select>
           </div>
+
+          {theme === "__custom__" && (
+            <div className="admin-form-row">
+              <label>自訂主題</label>
+              <input value={customTheme} onChange={(e) => setCustomTheme(e.target.value)} placeholder="例如：食物" required />
+            </div>
+          )}
 
           <div className="admin-form-row">
             <label>年份</label>
@@ -493,9 +568,57 @@ function UploadModal({ editing, manifest, setManifest, onClose, setError }) {
           </div>
 
           <div className="admin-form-row">
-            <label>自訂問題（每行一個）</label>
-            <textarea value={customQuestions} onChange={(e) => setCustomQuestions(e.target.value)} rows={4} placeholder={"這張相片令你想起甚麼？\n你以前去過這個地方嗎？"} />
+            <label>問題類型</label>
+            <select value={questionDraftType} onChange={(e) => setQuestionDraftType(e.target.value)}>
+              <option value="discussion">討論題</option>
+              <option value="factual">事實題</option>
+            </select>
           </div>
+
+          {questionDraftType === "discussion" ? (
+            <div className="admin-form-row">
+              <label>討論問題</label>
+              <input value={draftQuestion} onChange={(e) => setDraftQuestion(e.target.value)} placeholder="例如：這張相片令你想起甚麼？" />
+            </div>
+          ) : (
+            <>
+              <div className="admin-form-row">
+                <label>問題</label>
+                <input value={draftQuestion} onChange={(e) => setDraftQuestion(e.target.value)} placeholder="例如：這張相片拍攝於哪一年？" />
+              </div>
+              <div className="admin-form-row">
+                <label>選項（選擇正確答案）</label>
+                <div className="admin-option-grid">
+                  {draftOptions.map((option, index) => (
+                    <div className="admin-option-row" key={index}>
+                      <span className="admin-option-letter">{String.fromCharCode(65 + index)}</span>
+                      <input value={option} onChange={(e) => setDraftOption(index, e.target.value)} placeholder={`選項 ${String.fromCharCode(65 + index)}`} />
+                      <label className="admin-option-answer">
+                        <input type="radio" name="draft-answer" checked={draftAnswer === index} onChange={() => setDraftAnswer(index)} />
+                        正確
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          <div className="admin-question-actions">
+            <button type="button" className="btn btn-quiet" onClick={addQuestion}>加入問題</button>
+          </div>
+
+          {customQuestions.length > 0 && (
+            <div className="admin-questions-list">
+              {customQuestions.map((q) => (
+                <div className="admin-question-row" key={q.id}>
+                  <span className="tag">{q.type === "factual" ? "事實題" : "討論題"}</span>
+                  <span className="admin-question-text">{q.question}</span>
+                  <button type="button" className="btn btn-quiet" onClick={() => removeQuestion(q.id)}>刪除</button>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="modal-footer">
             <button type="button" className="btn btn-quiet" onClick={onClose}>取消</button>

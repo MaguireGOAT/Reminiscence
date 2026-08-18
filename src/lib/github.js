@@ -87,8 +87,23 @@ export async function commitBinary(path, file, message) {
   const bytes = new Uint8Array(arrayBuffer);
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
-  const base64 = btoa(binary);
-  return commitFile(path, base64, message);
+  return commitRaw(path, btoa(binary), message);
+}
+
+async function commitRaw(path, content, message) {
+  const { owner, repo, branch } = getRepoInfo();
+  const sha = await getFileSha(path);
+  const body = {
+    message,
+    content,
+    branch
+  };
+  if (sha) body.sha = sha;
+  return ghFetch(`/repos/${owner}/${repo}/contents/${path}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
 }
 
 export async function readFile(path) {
@@ -96,8 +111,8 @@ export async function readFile(path) {
   const data = await ghFetch(
     `/repos/${owner}/${repo}/contents/${path}?ref=${branch}`
   );
-  const decoded = atob(data.content);
-  return decoded;
+  const bytes = Uint8Array.from(atob(data.content), (char) => char.charCodeAt(0));
+  return new TextDecoder("utf-8").decode(bytes);
 }
 
 export async function readJson(path) {

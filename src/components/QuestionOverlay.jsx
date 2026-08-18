@@ -3,7 +3,14 @@ import { useMemo, useState } from "react";
 import { Button, IconButton } from "./Button.jsx";
 
 export function QuestionOverlay({ item, onClose, initialTab = "recall", initialReveal = false }) {
-  const [tab, setTab] = useState(initialTab);
+  const [tab, setTab] = useState(() => {
+    if (initialTab === "recall") {
+      const recall = item.questions?.recall || [];
+      const discussion = item.questions?.discussion || [];
+      if (!recall.length && discussion.length) return "discussion";
+    }
+    return initialTab;
+  });
   const [revealed, setRevealed] = useState(initialReveal);
   const [selected, setSelected] = useState(null);
   const [recallIndex, setRecallIndex] = useState(0);

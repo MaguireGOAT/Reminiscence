@@ -11,8 +11,8 @@ import {
   setRepoInfo,
   setToken
 } from "../lib/github.js";
-import { generateQuestions, THEMES, THEME_TOPICS } from "../lib/content.js";
-import { MEDIA_TYPE_LABELS, PHASES } from "../data/starter.js";
+import { MEDIA_TYPE_LABELS, PHASES, THEMES } from "../data/starter.js";
+import { MediaThumb } from "../components/MediaThumb.jsx";
 
 const pad3 = (v) => String(v).padStart(3, "0");
 const MANIFEST = "public/content/manifest.json";
@@ -184,6 +184,7 @@ function MediaRow({ item, onEdit, manifest, setManifest, setError }) {
 
   return (
     <div className="admin-row">
+      <MediaThumb item={item} size="sm" />
       <div className="admin-row-info">
         <strong>{item.title}</strong>
         <span className="admin-row-meta">
@@ -258,15 +259,19 @@ function UploadModal({ editing, manifest, setManifest, onClose, setError }) {
   const [year, setYear] = useState(existing?.year || "");
   const [theme, setTheme] = useState(existing?.theme || THEMES[0]);
   const [caption, setCaption] = useState(existing?.caption || "");
-  const [focus, setFocus] = useState(existing?.focus || "");
   const [notes, setNotes] = useState(existing?.notes || "");
   const [place, setPlace] = useState(existing?.place || "");
   const [sourceCredit, setSourceCredit] = useState(existing?.sourceCredit || "");
   const [mediaUrl, setMediaUrl] = useState(existing?.mediaUrl || "");
   const [posterUrl, setPosterUrl] = useState(existing?.posterUrl || "");
   const [file, setFile] = useState(null);
+  const [previewSrc, setPreviewSrc] = useState("");
   const [urlInput, setUrlInput] = useState("");
-  const [questions, setQuestions] = useState(existing?.questions || null);
+  const [customQuestions, setCustomQuestions] = useState(
+    existing?.questions?.discussion?.length
+      ? existing.questions.discussion.join("\n")
+      : ""
+  );
   const [saving, setSaving] = useState(false);
   const [sizeWarn, setSizeWarn] = useState("");
 
@@ -277,6 +282,8 @@ function UploadModal({ editing, manifest, setManifest, onClose, setError }) {
     const limit = SIZE_WARN[mediaType] || 50;
     if (mb > limit) setSizeWarn(`檔案大小 ${mb.toFixed(1)} MB，建議低於 ${limit} MB`);
     else setSizeWarn("");
+    if (previewSrc?.startsWith("blob:")) URL.revokeObjectURL(previewSrc);
+    setPreviewSrc(f ? URL.createObjectURL(f) : "");
     setFile(f);
     setUrlInput("");
   };
@@ -290,6 +297,8 @@ function UploadModal({ editing, manifest, setManifest, onClose, setError }) {
         const oembed = await fetchOEmbed(urlInput.trim());
         setTitle((prev) => prev || oembed.title || "");
         setMediaType("video");
+        setFile(null);
+        setPreviewSrc("");
         setMediaUrl(urlInput.trim());
       } else {
         // Fetch the file
@@ -302,6 +311,8 @@ function UploadModal({ editing, manifest, setManifest, onClose, setError }) {
         const limit = SIZE_WARN[mediaType] || 50;
         if (mb > limit) setSizeWarn(`檔案大小 ${mb.toFixed(1)} MB，建議低於 ${limit} MB`);
         else setSizeWarn("");
+        if (previewSrc?.startsWith("blob:")) URL.revokeObjectURL(previewSrc);
+        setPreviewSrc(URL.createObjectURL(f));
         setFile(f);
       }
     } catch (e) {
@@ -309,11 +320,6 @@ function UploadModal({ editing, manifest, setManifest, onClose, setError }) {
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleGenerateQuestions = () => {
-    const q = generateQuestions({ type: mediaType, title, theme, caption, focus: focus || THEME_TOPICS[theme] });
-    setQuestions(q);
   };
 
   const handleSave = async (e) => {
@@ -325,7 +331,7 @@ function UploadModal({ editing, manifest, setManifest, onClose, setError }) {
       let finalPosterUrl = posterUrl;
 
       // Upload file if we have one
-      if (file && uploadMode === "file" || file) {
+      if (file) {
         const ext = file.name.split(".").pop();
         const listKey = mediaType === "text" ? "textCards" : "media";
         const items = manifest[listKey] || [];
@@ -348,11 +354,13 @@ function UploadModal({ editing, manifest, setManifest, onClose, setError }) {
         place,
         theme,
         caption,
-        focus: focus || THEME_TOPICS[theme] || theme,
         notes,
         mediaUrl: finalMediaUrl,
         sourceCredit,
-        questions: questions || generateQuestions({ type: mediaType, title, theme, caption, focus: focus || THEME_TOPICS[theme] })
+        questions: {
+          recall: [],
+          discussion: customQuestions.split("\n").map((q) => q.trim()).filter(Boolean)
+        }
       };
       if (mediaType === "video" && finalPosterUrl) item.posterUrl = finalPosterUrl;
 
@@ -422,6 +430,27 @@ function UploadModal({ editing, manifest, setManifest, onClose, setError }) {
               {sizeWarn && <div className="notice">{sizeWarn}</div>}
               {file && <p className="admin-file-name">已選擇: {file.name}</p>}
               {!file && mediaUrl && <p className="admin-file-name">目前: {mediaUrl}</p>}
+              {(file || mediaUrl) ? (
+                <div className="admin-preview">
+                  {mediaType === "photo" ? (
+                    <img src={file ? previewSrc : mediaUrl} alt="預覽" />
+                  ) : null}
+                  {mediaType === "song" ? (
+                    <audio src={file ? previewSrc : mediaUrl} controls />
+                  ) : null}
+                  {mediaType === "video" ? (
+                    /youtube\.com|youtu\.be/.test(mediaUrl) && !file ? (
+                      <iframe
+                        src={`https://www.youtube.com/embed/${mediaUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)?.[1]}`}
+                        title="影片預覽"
+                        allowFullScreen
+                      />
+                    ) : (
+                      <video src={file ? previewSrc : mediaUrl} controls />
+                    )
+                  ) : null}
+                </div>
+              ) : null}
             </>
           )}
 
@@ -431,10 +460,11 @@ function UploadModal({ editing, manifest, setManifest, onClose, setError }) {
           </div>
 
           <div className="admin-form-row">
-            <label>主題</label>
-            <select value={theme} onChange={(e) => setTheme(e.target.value)}>
-              {THEMES.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
+            <label>主題（可自訂）</label>
+            <input value={theme} onChange={(e) => setTheme(e.target.value)} list="theme-options" placeholder="例如：食物" required />
+            <datalist id="theme-options">
+              {THEMES.map((t) => <option key={t} value={t} />)}
+            </datalist>
           </div>
 
           <div className="admin-form-row">
@@ -445,11 +475,6 @@ function UploadModal({ editing, manifest, setManifest, onClose, setError }) {
           <div className="admin-form-row">
             <label>描述</label>
             <textarea value={caption} onChange={(e) => setCaption(e.target.value)} rows={2} />
-          </div>
-
-          <div className="admin-form-row">
-            <label>焦點 (用於問題生成)</label>
-            <input value={focus} onChange={(e) => setFocus(e.target.value)} placeholder="留空則自動產生" />
           </div>
 
           <div className="admin-form-row">
@@ -468,18 +493,8 @@ function UploadModal({ editing, manifest, setManifest, onClose, setError }) {
           </div>
 
           <div className="admin-form-row">
-            <label>問題</label>
-            <button type="button" className="btn btn-quiet" onClick={handleGenerateQuestions}>
-              自動生成問題
-            </button>
-            {questions && (
-              <div className="admin-questions-preview">
-                <p><strong>回憶問題:</strong></p>
-                {questions.recall?.map((q, i) => <p key={i}>· {q.question} → {q.answer}</p>)}
-                <p><strong>討論:</strong></p>
-                {questions.discussion?.map((d, i) => <p key={i}>· {d}</p>)}
-              </div>
-            )}
+            <label>自訂問題（每行一個）</label>
+            <textarea value={customQuestions} onChange={(e) => setCustomQuestions(e.target.value)} rows={4} placeholder={"這張相片令你想起甚麼？\n你以前去過這個地方嗎？"} />
           </div>
 
           <div className="modal-footer">

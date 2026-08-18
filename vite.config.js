@@ -52,8 +52,9 @@ export default defineConfig({
         runtimeCaching: [
           {
             urlPattern: /\/media\//,
-            handler: "CacheFirst",
+            handler: "NetworkFirst",
             options: {
+              networkTimeoutSeconds: 3,
               cacheName: "reminiscence-media",
               expiration: {
                 maxEntries: 400,

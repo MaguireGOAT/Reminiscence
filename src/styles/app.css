@@ -1062,6 +1062,7 @@
 
 .media-card-stage:fullscreen .photo-stage,
 .media-card-stage:-webkit-full-screen .photo-stage {
+  position: relative;
   width: 100vw;
   height: 100vh;
   min-height: 0;
@@ -1070,8 +1071,11 @@
 
 .media-card-stage:fullscreen .photo-stage img,
 .media-card-stage:-webkit-full-screen .photo-stage img {
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
   max-width: none;
   max-height: none;
   object-fit: contain;
@@ -1102,8 +1106,11 @@
 
 .media-card-stage:fullscreen .video-player video,
 .media-card-stage:-webkit-full-screen .video-player video {
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
   min-height: 0;
   object-fit: contain;
 }

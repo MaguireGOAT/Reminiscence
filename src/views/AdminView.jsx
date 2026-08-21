@@ -443,7 +443,11 @@ function UploadModal({ editing, manifest, setManifest, onClose, setError }) {
 
       await commitFile(MANIFEST, JSON.stringify(newManifest, null, 2), `${existing ? "更新" : "新增"} ${title}`);
       setManifest(newManifest);
-      onClose();
+      if (existing) {
+        onClose();
+        return;
+      }
+      resetForm();
     } catch (e) {
       setError(`儲存失敗: ${e.message}`);
     } finally {
@@ -453,6 +457,31 @@ function UploadModal({ editing, manifest, setManifest, onClose, setError }) {
 
   const handleRequestClose = () => {
     if (window.confirm("確定要關閉嗎？未儲存嘅更改會遺失。")) onClose();
+  };
+
+  const resetForm = () => {
+    if (previewSrc?.startsWith("blob:")) URL.revokeObjectURL(previewSrc);
+    setUploadMode("file");
+    setMediaType("photo");
+    setTitle("");
+    setYear("");
+    setTheme(THEMES[0]);
+    setCustomTheme("");
+    setCaption("");
+    setNotes("");
+    setPlace("");
+    setSourceCredit("");
+    setMediaUrl("");
+    setPosterUrl("");
+    setFile(null);
+    setPreviewSrc("");
+    setUrlInput("");
+    setCustomQuestions([]);
+    setQuestionDraftType("discussion");
+    setDraftQuestion("");
+    setDraftOptions(["", "", "", ""]);
+    setDraftAnswer(0);
+    setSizeWarn("");
   };
 
   return (

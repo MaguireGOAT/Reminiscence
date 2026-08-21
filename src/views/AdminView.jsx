@@ -452,12 +452,16 @@ function UploadModal({ editing, manifest, setManifest, onClose, setError }) {
     }
   };
 
+  const handleRequestClose = () => {
+    if (window.confirm("確定要關閉嗎？未儲存嘅更改會遺失。")) onClose();
+  };
+
   return (
-    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="modal-backdrop">
       <div className="modal-panel" style={{ maxWidth: 640 }}>
         <div className="modal-header">
           <h2 className="modal-title">{existing ? "編輯內容" : "新增內容"}</h2>
-          <button className="btn btn-quiet" onClick={onClose}>關閉</button>
+          <button className="btn btn-quiet" onClick={handleRequestClose}>關閉</button>
         </div>
         <form className="modal-body admin-form" onSubmit={handleSave}>
           {isNew && (
@@ -623,7 +627,7 @@ function UploadModal({ editing, manifest, setManifest, onClose, setError }) {
           )}
 
           <div className="modal-footer">
-            <button type="button" className="btn btn-quiet" onClick={onClose}>取消</button>
+            <button type="button" className="btn btn-quiet" onClick={handleRequestClose}>取消</button>
             <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "儲存中..." : "儲存並發佈"}</button>
           </div>
         </form>

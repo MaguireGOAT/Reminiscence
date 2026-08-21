@@ -112,7 +112,6 @@ export function AdminView() {
       <header className="page-header">
         <div>
           <h1 className="page-title">內容管理</h1>
-          <p className="page-subtitle">{getRepoInfo().owner}/{getRepoInfo().repo}</p>
         </div>
         <div className="page-actions">
           <button className="btn btn-primary" onClick={() => setEditing({ type: "new" })}>新增內容</button>

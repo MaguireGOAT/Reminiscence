@@ -37,9 +37,7 @@ export function AdminView() {
 
   // Auth form state
   const [tokenInput, setTokenInput] = useState(getToken());
-  const [ownerInput, setOwnerInput] = useState(getRepoInfo().owner);
-  const [repoInput, setRepoInput] = useState(getRepoInfo().repo);
-  const [branchInput, setBranchInput] = useState(getRepoInfo().branch || "main");
+  const [usernameInput, setUsernameInput] = useState(getRepoInfo().owner);
 
   const loadManifest = useCallback(async () => {
     if (!isAuthenticated()) return;
@@ -62,8 +60,9 @@ export function AdminView() {
 
   const handleLogin = (e) => {
     e.preventDefault();
+    const existing = getRepoInfo();
     setToken(tokenInput.trim());
-    setRepoInfo(ownerInput.trim(), repoInput.trim(), branchInput.trim());
+    setRepoInfo(usernameInput.trim(), existing.repo || "Reminiscence", existing.branch || "main");
     setAuthed(true);
   };
 
@@ -75,27 +74,30 @@ export function AdminView() {
 
   if (!authed) {
     return (
-      <div className="page admin-page">
-        <h1 className="page-title">管理員登入</h1>
-        <p className="page-subtitle">輸入 GitHub 個人存取令牌和倉庫資訊</p>
-        <form className="admin-login-form" onSubmit={handleLogin}>
-          <label>
-            <span>GitHub Token</span>
-            <input type="password" value={tokenInput} onChange={(e) => setTokenInput(e.target.value)} placeholder="ghp_..." required />
+      <div className="login-page">
+        <form className="login-card" onSubmit={handleLogin}>
+          <h1 className="login-title">登入</h1>
+          <label className="login-field">
+            <span>使用者名稱</span>
+            <input
+              type="text"
+              value={usernameInput}
+              onChange={(e) => setUsernameInput(e.target.value)}
+              autoComplete="username"
+              required
+            />
           </label>
-          <label>
-            <span>倉庫擁有者</span>
-            <input value={ownerInput} onChange={(e) => setOwnerInput(e.target.value)} placeholder="username" required />
+          <label className="login-field">
+            <span>密碼</span>
+            <input
+              type="password"
+              value={tokenInput}
+              onChange={(e) => setTokenInput(e.target.value)}
+              autoComplete="current-password"
+              required
+            />
           </label>
-          <label>
-            <span>倉庫名稱</span>
-            <input value={repoInput} onChange={(e) => setRepoInput(e.target.value)} placeholder="reminiscence-pwa" required />
-          </label>
-          <label>
-            <span>分支</span>
-            <input value={branchInput} onChange={(e) => setBranchInput(e.target.value)} placeholder="main" />
-          </label>
-          <button type="submit" className="btn btn-primary">登入</button>
+          <button type="submit" className="btn btn-primary btn-lg login-submit">登入</button>
         </form>
       </div>
     );
